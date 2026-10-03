@@ -2,8 +2,10 @@
 # linuxqq-wayland-fix @VERSION@ —— 修复 Linux QQ 在 Wayland 下的屏幕共享、共享电脑声音、剪贴板和截图闪退。
 # https://github.com/SHORiN-KiWATA/linuxqq-wayland-fix
 #
-#   linuxqq-wayland-fix [QQ 的参数...]   启动 QQ（应用菜单里的「QQ（Wayland修复版）」就是它）
+#   linuxqq-wayland-fix [QQ 的参数...]   启动 QQ（应用菜单里的「QQ」就是它）
 #   linuxqq-wayland-fix --doctor         检查环境与当前 QQ 版本是否兼容
+#   linuxqq-wayland-fix --install-desktop    把菜单里的官方 QQ 条目换成这个启动器（用户级软链）
+#   linuxqq-wayland-fix --uninstall-desktop  撤销上面的替换
 #   linuxqq-wayland-fix --version
 #
 # 环境变量：
@@ -18,6 +20,7 @@ set -u
 
 VERSION="@VERSION@"
 LIBDIR="@LIBEXECDIR@"
+DESKTOPFILE="@DESKTOPFILE@"
 SCREENSHARE_LIB="$LIBDIR/libqq-wl-portal.so"
 CLIPBOARD_LIB="$LIBDIR/libqq-clipbridge.so"
 SCREENSHOT_LIB="$LIBDIR/libqq-screenshot.so"
@@ -218,7 +221,7 @@ doctor() {
     elif tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -q 'libqq-wl-portal.so'; then
         pass "QQ（PID $pid）已注入"
     else
-        bad "QQ（PID $pid）没有注入：请完全退出 QQ（含托盘），再从「QQ（Wayland修复版）」打开"
+        bad "QQ（PID $pid）没有注入：请完全退出 QQ（含托盘），再从菜单里的「QQ」打开（未替换条目时先跑 --install-desktop）"
     fi
 
     echo
@@ -239,10 +242,69 @@ doctor() {
     [[ $fail -eq 0 ]]
 }
 
+# 应用菜单里只留一套启动器：官方 qq.desktop 与我们的同名条目 ID 相同，而 $XDG_DATA_HOME
+# 的优先级高于 /usr/share，因此用户级的 qq.desktop 会整体覆盖官方条目。
+# 真身放在 $XDG_DATA_HOME/linuxqq-wayland-fix/qq.desktop，applications/ 下只放指向它的软链。
+desktop_paths() {
+    local data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+    DESKTOP_REAL="$data_home/linuxqq-wayland-fix/qq.desktop"
+    DESKTOP_LINK="$data_home/applications/qq.desktop"
+    DESKTOP_BACKUP="$DESKTOP_LINK.bak-linuxqq-wayland-fix"
+}
+
+install_desktop() {
+    desktop_paths
+    if [[ ! -f "$DESKTOPFILE" ]]; then
+        echo "linuxqq-wayland-fix: 找不到桌面条目模板 $DESKTOPFILE" >&2
+        return 1
+    fi
+    local self base escaped
+    self=$(readlink -f "$0")
+    # Nix 的 wrapProgram 会把真正脚本放到同目录的 .<名字>-wrapped，并 exec 它；
+    # 直接指过去会丢掉 wrapper 设好的环境变量，还原成 wrapper 的公开路径。
+    base=$(basename "$self")
+    if [[ "$base" == .*-wrapped ]]; then
+        self="$(dirname "$self")/${base#.}"
+        self="${self%-wrapped}"
+    fi
+    escaped=${self//\"/\\\"}
+    escaped=${escaped//&/\\&}
+    mkdir -p "$(dirname "$DESKTOP_REAL")" "$(dirname "$DESKTOP_LINK")"
+    # applications/qq.desktop 若已被真实文件占用（用户自建、或旧版拷贝过来的），先备份，
+    # --uninstall-desktop 时可原样还原。
+    if [[ -e "$DESKTOP_LINK" && ! -L "$DESKTOP_LINK" ]]; then
+        mv -f "$DESKTOP_LINK" "$DESKTOP_BACKUP"
+        echo "已备份原有的 $DESKTOP_LINK → $DESKTOP_BACKUP"
+    fi
+    # Exec 写成本启动器的绝对路径，不依赖 PATH 与安装前缀。
+    sed "s|^Exec=.*|Exec=\"$escaped\" %U|" "$DESKTOPFILE" > "$DESKTOP_REAL"
+    ln -sfn "$DESKTOP_REAL" "$DESKTOP_LINK"
+    command -v update-desktop-database >/dev/null 2>&1 &&
+        update-desktop-database "$(dirname "$DESKTOP_LINK")" >/dev/null 2>&1 || true
+    echo "已在应用菜单里用本启动器替换官方 QQ 条目："
+    echo "  $DESKTOP_LINK → $DESKTOP_REAL"
+}
+
+uninstall_desktop() {
+    desktop_paths
+    [[ -L "$DESKTOP_LINK" ]] && rm -f "$DESKTOP_LINK"
+    rm -f "$DESKTOP_REAL"
+    rmdir "$(dirname "$DESKTOP_REAL")" 2>/dev/null || true
+    if [[ -e "$DESKTOP_BACKUP" ]]; then
+        mv -f "$DESKTOP_BACKUP" "$DESKTOP_LINK"
+        echo "已还原 $DESKTOP_LINK"
+    fi
+    command -v update-desktop-database >/dev/null 2>&1 &&
+        update-desktop-database "$(dirname "$DESKTOP_LINK")" >/dev/null 2>&1 || true
+    echo "已撤销对官方 QQ 条目的替换。"
+}
+
 case "${1:-}" in
     --doctor) doctor; exit $? ;;
+    --install-desktop) install_desktop; exit $? ;;
+    --uninstall-desktop) uninstall_desktop; exit $? ;;
     --version) echo "linuxqq-wayland-fix $VERSION"; exit 0 ;;
-    --help|-h) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --help|-h) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 esac
 
 QQ=$(find_qq)

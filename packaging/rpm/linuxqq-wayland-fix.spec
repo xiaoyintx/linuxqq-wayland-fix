@@ -23,7 +23,8 @@ Recommends:     xdg-desktop-portal
 %description
 Fixes Linux QQ on Wayland: screen sharing does not work, shared device
 audio is silent, and copy/paste between QQ and other apps is broken.
-Open "QQ（Wayland修复版）" from the application menu.
+Run "linuxqq-wayland-fix --install-desktop" to replace the "QQ" menu entry
+with the fixed launcher (a per-user qq.desktop override).
 
 %prep
 %autosetup
@@ -40,7 +41,7 @@ Open "QQ（Wayland修复版）" from the application menu.
 %doc %{_docdir}/%{srcname}/README.md
 %{_bindir}/linuxqq-wayland-fix
 %{_libdir}/%{srcname}/
-%{_datadir}/applications/linuxqq-wayland-fix.desktop
+%{_datadir}/%{srcname}/qq.desktop
 
 %changelog
 * Thu Oct 01 2026 Shorin <shorin@example.com> - %{version}-1

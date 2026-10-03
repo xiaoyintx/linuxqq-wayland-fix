@@ -61,7 +61,7 @@ home-manager.users.<用户名> =
   };
 ```
 
-QQ 本体是 unfree，需要 `nixpkgs.config.allowUnfree = true;`。安装后从「QQ（Wayland修复版）」启动，用法与其它发行版一致。
+QQ 本体是 unfree，需要 `nixpkgs.config.allowUnfree = true;`。home-manager 模块会自动把菜单里的「QQ」指向修复版；手动或用 `nix profile install` 时，执行一次 `linuxqq-wayland-fix --install-desktop` 即可，用法与其它发行版一致。
 
 ### 从源码
 
@@ -74,7 +74,15 @@ sudo make install PREFIX=/usr
 
 ## 使用
 
-完全退出QQ（包括托盘），然后从应用菜单打开「**QQ（Wayland修复版）**」。
+先让应用菜单里的「QQ」指向本修复（可随时撤销）：
+
+```bash
+linuxqq-wayland-fix --install-desktop     # 建 ~/.local/share/applications/qq.desktop 软链，覆盖官方条目
+linuxqq-wayland-fix --uninstall-desktop   # 撤销
+```
+
+这样菜单里只有一套启动器，且就是修复版（同上方法对 NixOS 的 home-manager 模块会自动完成）。
+然后完全退出 QQ（包括托盘），从应用菜单打开「**QQ**」即可。
 
 - 屏幕分享
   

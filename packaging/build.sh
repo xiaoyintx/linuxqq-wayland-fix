@@ -31,7 +31,8 @@ Homepage: https://github.com/SHORiN-KiWATA/linuxqq-wayland-fix
 Description: Fix Linux QQ screen sharing, device audio and clipboard on Wayland
  Fixes Linux QQ on Wayland: screen sharing does not work, shared device
  audio is silent, and copy/paste between QQ and other apps is broken.
- Open "QQ（Wayland修复版）" from the application menu.
+ Run "linuxqq-wayland-fix --install-desktop" to replace the "QQ" menu
+ entry with the fixed launcher (a per-user qq.desktop override).
 CTRL
     dpkg-deb --root-owner-group --build "$stage" "$dist/${pkg}_${version}-1~${label}_${arch}.deb"
     ;;

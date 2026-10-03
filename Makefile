@@ -19,6 +19,10 @@ CFLAGS     ?= -O2 -g
 PKG_CONFIG ?= pkg-config
 WAYLAND_SCANNER ?= wayland-scanner
 
+# 桌面条目本体装到 DATADIR/$(NAME)/ 下（而非 applications/），由 `--install-desktop`
+# 以同名 qq.desktop 软链到用户数据目录，覆盖官方 QQ 条目，使菜单里只剩一套启动器。
+DESKTOP    := qq.desktop
+
 # 屏幕共享修复：只用 libpulse / libpipewire 的头文件，运行时不依赖它们；
 # libX11 用于读 Xft.dpi 还原分数缩放（见 qq-wl-portal.c「7.」）
 SS_CFLAGS  := $(shell $(PKG_CONFIG) --cflags gio-unix-2.0 libpulse libpipewire-0.3 x11)
@@ -67,7 +71,9 @@ $(SH_LIB): src/qq-screenshot.c build/wlr-screencopy-unstable-v1-client-protocol.
 	    $(LDFLAGS) -shared -Wl,-z,defs -o $@ src/qq-screenshot.c build/wlr-screencopy-unstable-v1-protocol.c $(CB_LIBS) -ldl
 
 $(CMD): $(CMD).in
-	sed -e 's|@LIBEXECDIR@|$(LIBEXECDIR)|g' -e 's|@VERSION@|$(VERSION)|g' $< > $@
+	sed -e 's|@LIBEXECDIR@|$(LIBEXECDIR)|g' -e 's|@DATADIR@|$(DATADIR)|g' \
+	    -e 's|@DESKTOPFILE@|$(DATADIR)/$(NAME)/$(DESKTOP)|g' \
+	    -e 's|@VERSION@|$(VERSION)|g' $< > $@
 	chmod +x $@
 
 install: all
@@ -75,7 +81,7 @@ install: all
 	install -Dm755 $(CB_LIB)         $(DESTDIR)$(LIBEXECDIR)/$(CB_LIB)
 	install -Dm755 $(SH_LIB)         $(DESTDIR)$(LIBEXECDIR)/$(SH_LIB)
 	install -Dm755 $(CMD)            $(DESTDIR)$(BINDIR)/$(CMD)
-	install -Dm644 $(CMD).desktop    $(DESTDIR)$(DATADIR)/applications/$(CMD).desktop
+	install -Dm644 $(CMD).desktop    $(DESTDIR)$(DATADIR)/$(NAME)/$(DESKTOP)
 	install -Dm644 README.md         $(DESTDIR)$(DOCDIR)/README.md
 	install -Dm644 LICENSE           $(DESTDIR)$(DATADIR)/licenses/$(NAME)/LICENSE
 

@@ -47,7 +47,7 @@
           ];
 
           postInstall = ''
-            substituteInPlace $out/share/applications/linuxqq-wayland-fix.desktop \
+            substituteInPlace $out/share/linuxqq-wayland-fix/qq.desktop \
               --replace-fail 'Exec=linuxqq-wayland-fix' "Exec=$out/bin/linuxqq-wayland-fix"
           '';
 
@@ -132,6 +132,11 @@
 
           config = lib.mkIf config.programs.linuxqq-wayland-fix.enable {
             home.packages = [ config.programs.linuxqq-wayland-fix.package ];
+            # 用同名（ID 为 qq）的桌面条目覆盖官方 qq.desktop：$XDG_DATA_HOME 优先级高于
+            # /usr/share，菜单里因此只剩一套启动器，且指向本修复。也可手动
+            # `linuxqq-wayland-fix --install-desktop` 做同样的事。
+            home.file.".local/share/applications/qq.desktop".source =
+              "${config.programs.linuxqq-wayland-fix.package}/share/linuxqq-wayland-fix/qq.desktop";
           };
         };
     };
